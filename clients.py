@@ -1,86 +1,96 @@
 import psycopg2 as ps2
 
-conn = ps2.connect(database='clients', user='postgres', password='')
-cur = conn.cursor()
+with ps2.connect(database='clients', user='postgres', password='') as con:
+    with con.cursor() as cur:
 
-def create_table(connection, cursor):
-    cursor.execute("""
-    CREATE TABLE if not exists clients(
-    id SERIAL PRIMARY KEY,
-    first_name VARCHAR (40) NOT NULL,
-    last_name VARCHAR (40) NOT NULL,
-    mail TEXT UNIQUE,
-    mobile INTEGER UNIQUE
-    );
-    """)
-    connection.commit()
-
-def new_client(cursor):
-    first_name = input('Введите имя клиента: ')
-    last_name = input('Введите фамилию клиента: ')
-    mail = input('Введите почту клиента: ')
-    mobile = int(input('Введите телефон клиента (если нет, введите 0): '))
-
-    if mobile != 0:
-        cursor.execute (f"""
-        INSERT INTO clients(first_name, last_name, mail, mobile) VALUES('{first_name}', '{last_name}', '{mail}', {mobile})
-        RETURNING id;
-        """)
-    else:
-        cursor.execute(f"""
-               INSERT INTO clients(first_name, last_name, mail) VALUES('{first_name}', '{last_name}', '{mail}')
-               RETURNING id;
-               """)
-
-    print(cursor.fetchone())
-
-def add_mobile(connection, cursor, mobile, client_id):
-    cursor.execute(f"""
-    UPDATE clients
-    SET mobile = {mobile}
-    WHERE id = {client_id};
-    """)
-    connection.commit()
-
-def change_data(connection, cursor, client_id):
-    column = input('Какой столбец Вы бы хотели изменить: ')
-    if column == 'mobile':
-        value = int(input(f'Введите новый {column}: '))
-    else:
-        value = input(f'Введите новый {column}: ')
-    cursor.execute(f"""
-    UPDATE clients
-    SET {column} = '{value}'
-    WHERE id = {client_id};
-    """)
-    connection.commit()
-
-def del_mobile(connection, cursor, client_id):
-    cursor.execute(f"""
-    UPDATE clients
-    SET mobile = ''
-    WHERE id = {client_id};
-    """)
-    connection.commit()
-
-def del_client(connection, cursor, client_id):
-    cursor.execute(f"""
-    DELETE FROM clients
-    WHERE id = {client_id}
-    """)
-    connection.commit()
-
-def find_client(cursor):
-    column = input('По какому значению (столбцу) желаете осуществить поиск: ')
-    if column == 'mobile':
-        value = int(input(f'Введите значение {column}: '))
-    else:
-        value = input(f'Введите значение {column}: ')
-    cursor.execute(f"""
-    SELECT first_name, last_name, mail, mobile FROM clients WHERE {column} = %s;
-    """, (value,))
-    print(cur.fetchone())
+        def create_table(connection, cursor):
+            cursor.execute("""
+            CREATE TABLE if not exists clients(
+            id SERIAL PRIMARY KEY,
+            first_name VARCHAR (40) NOT NULL,
+            last_name VARCHAR (40) NOT NULL,
+            mail TEXT UNIQUE
+            );
+            """)
+            cursor.execute("""
+            CREATE TABLE if not exists mobile(
+            id SERIAL PRIMARY KEY,
+            client_id INTEGER NOT NULL
+            mobile_phone INTEGER UNIQUE
+            );
+            """)
 
 
-conn.close()
-cur.close()
+        def new_client(cursor, first_name, last_name, mail):
+
+            cursor.execute("""
+            INSERT INTO clients(first_name, last_name, mail) VALUES(%s, %s, %s)
+            RETURNING id;
+            """, (first_name, last_name, mail))
+
+            print(cursor.fetchone())
+
+
+        def add_mobile(cursor, mobile: int, client_id):
+            cursor.execute("""
+            UPDATE mobile
+            SET mobile_phone = %s
+            WHERE client_id = %s;
+            """, (mobile, client_id))  # Хотелось бы уточнить, можно ли так передавать %s?
+
+
+        def change_data(cursor, client_id, column, value):
+
+            cursor.execute("""
+            UPDATE clients
+            SET %s = %s
+            WHERE id = %s;
+            """, (column, value, client_id))
+
+
+        def del_mobile(cursor, client_id):
+            cursor.execute("""
+            UPDATE mobile
+            SET mobile_phone = ''
+            WHERE id = %s;
+            """, (client_id))
+
+
+        def del_client(cursor, client_id):
+            cursor.execute("""
+            DELETE FROM clients
+            WHERE id = %s
+            """, (client_id,))
+
+
+        def find_client(cursor, column, value):
+
+            cursor.execute("""
+            SELECT first_name, last_name, mail, mobile FROM clients WHERE %s = %s;
+            """, (column, value))
+
+
+        def user_request():
+            function = int(input('Какую функцию Вы бы хотели реализовать: \n'
+                                 '1) Добавить нового клиента \n'
+                                 '2) Добавить телефон существующего клиента \n'
+                                 '3) Изменить данные о клиенте \n'
+                                 '4) Удалить телефон существующего клиента \n'
+                                 '5) Удалить существующего клиента \n'
+                                 '6) Найти клиента \n'))
+            if function == 1:
+                new_client(cur, 'Vasya', 'Petrov', 'bla-bla-mail')
+            elif function == 2:
+                add_mobile(cur, 8900000000, 2)
+            elif function == 3:
+                change_data(cur, 2, 'mail', 'sugar-mail')
+            elif function == 4:
+                del_mobile(cur, 2)
+            elif function == 5:
+                del_client(cur, 3)
+            else:
+                find_client(cur, 'mail', 'sugar-mail')
+            print(user_request())
+
+
+        user_request()
