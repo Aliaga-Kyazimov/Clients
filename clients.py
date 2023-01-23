@@ -86,7 +86,7 @@ def find_client(cursor, first_name=None, last_name=None, mail=None):
     print(cursor.fetchall())
 
 
-with ps2.connect(database='clients', user='postgres', password='02111950') as con:
+with ps2.connect(database='clients', user='postgres', password='') as con:
     with con.cursor() as cur:
         create_table(con, cur)
         # new_client(con, cur, 'Ivan', 'Ivanov', 'bla-bla@mail.ru')
